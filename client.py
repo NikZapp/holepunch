@@ -97,7 +97,7 @@ def main():
         'connected': False
     }
 
-    sock.sendto(f"REGISTER {session}\n".encode(), relay_addr)
+    ext_sock.sendto(f"REGISTER {session}\n".encode(), relay_addr)
     
     # Background thread for receiving packets
     threading.Thread(
@@ -120,7 +120,7 @@ def main():
     try:
         while True:
             # Keep NAT mapping + relay aware
-            sock.sendto(f"REGISTER {session}\n".encode(), relay_addr)
+            ext_sock.sendto(f"REGISTER {session}\n".encode(), relay_addr)
 
             # Only send PUNCH if peer known
             remote_peer = state.get('remote_peer')
