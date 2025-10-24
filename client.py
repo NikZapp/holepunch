@@ -74,6 +74,7 @@ def main():
     p.add_argument("--relay", required=True)
     p.add_argument("--relay-port", type=int, default=50000)
     p.add_argument("--session", required=True)
+    p.add_argument("--external-port", type=int, required=True)
     p.add_argument("--local-default", type=int)
     args = p.parse_args()
 
