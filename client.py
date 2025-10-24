@@ -108,13 +108,6 @@ def main():
     
     punch_and_monitor(ext_sock, relay_addr, session, state, punch_timeout=5.0)
 
-    # Start local->remote forwarder (stays same)
-    threading.Thread(
-        target=local_to_remote_loop,
-        args=(local_sock, ext_sock, relay_addr, session, state),
-        daemon=True
-    ).start()
-
     print("[client] running. Ctrl+C to quit.")
     try:
         while True:
