@@ -11,8 +11,8 @@ def punch_and_monitor(ext_sock, relay_addr, session, state, punch_timeout=5.0):
 
     # blast register packets short term to create NAT mapping
     for _ in range(6):
-        send_register(ext_sock, relay_addr, session)
-        time.sleep(0.5)
+        ext_sock.sendto(f"REGISTER {session}\n".encode(), relay_addr)
+        time.sleep(0.1)
 
     # Wait for peer info
     print("Waiting for peer info from relay...")
@@ -96,8 +96,6 @@ def main():
         'remote_peer': None,
         'connected': False
     }
-
-    ext_sock.sendto(f"REGISTER {session}\n".encode(), relay_addr)
     
     # Background thread for receiving packets
     threading.Thread(
