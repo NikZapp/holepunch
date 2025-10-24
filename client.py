@@ -61,14 +61,14 @@ def packet_loop(ext_sock, relay_addr, session, state):
         elif addr == state.get("remote_peer"):
             # Transfer to local_peer
             if data != PUNCH_MESSAGE:
-                ext_sock.sendto(data, ('127.0.0.1', state['local_peer']))
+                ext_sock.sendto(data, state['local_peer'])
             else:
                 state['connected'] = True
         elif addr[0].startswith("127."):
             # Local to remote_peer
             state["local_peer"] = addr
             
-            ext_sock.sendto(data, ('127.0.0.1', state['remote_peer']))
+            ext_sock.sendto(data, state['remote_peer'])
 
 def main():
     p = argparse.ArgumentParser()
@@ -87,7 +87,7 @@ def main():
     ext_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     ext_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        ext_sock.bind(('', args.external_port))
+        ext_sock.bind(('0.0.0.0', args.external_port))
     except Exception as e:
         print(f"Failed to bind external port {args.external_port}: {e}")
         return
