@@ -37,9 +37,8 @@ def punch_and_monitor(ext_sock, relay_addr, session, state, punch_timeout=5.0):
             pass
         time.sleep(0.1)
 
-    if state.get('direct_ok'):
+    if state.get('connected'):
         print("Holepunch established!")
-        state['connected'] = True
     else:
         print("Holepunch failed ∑:{")
         exit(0)
@@ -63,6 +62,8 @@ def packet_loop(ext_sock, relay_addr, session, state):
             # Transfer to local_peer
             if data != PUNCH_MESSAGE:
                 ext_sock.sendto(data, ('127.0.0.1', state['local_peer']))
+            else:
+                state['connected'] = True
         elif addr[0].startswith("127."):
             # Local to remote_peer
             state["local_peer"] = addr
