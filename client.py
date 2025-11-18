@@ -78,7 +78,7 @@ def packet_loop(ext_sock, tcp_sock, relay_addr, session, state):
 def tcp_bridge(ext_sock, tcp_sock):
     try:
         while True:
-            data = sock.recv(MAX_MSG_SIZE)
+            data = tcp_sock.recv(MAX_MSG_SIZE)
             print("TCP", data)
             ext_sock.sendto(data, state['remote_peer'])
     except OSError:
