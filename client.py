@@ -43,17 +43,17 @@ def punch_and_monitor(ext_sock, relay_addr, session, state, punch_timeout=5.0):
         print("Holepunch failed ∑:{")
         exit(0)
 
-def packet_loop(ext_sock, relay_addr, session, state):
+def packet_loop(ext_sock, tcp_sock, relay_addr, session, state):
     # Listen for messages
     while True:
         data, addr = ext_sock.recvfrom(MAX_MSG_SIZE)
-        print("GOT", addr, data)
+        #print("GOT", addr, data)
         # We might receive raw forwarded payloads or control messages from relay
         if addr == relay_addr:
             t = data.decode(errors="ignore").strip().split()
             if len(t) >= 3 and t[0] == "PEER":
                 peer_ip = t[1]; peer_port = int(t[2])
-                print(f"[client] received remote_peer {peer_ip}:{peer_port}")
+                #print(f"[client] received remote_peer {peer_ip}:{peer_port}")
                 state['remote_peer'] = (peer_ip, peer_port)
             else:
                 # ignore other control messages
@@ -61,14 +61,28 @@ def packet_loop(ext_sock, relay_addr, session, state):
         elif addr == state.get("remote_peer"):
             # Transfer to local_peer
             if data != PUNCH_MESSAGE:
-                ext_sock.sendto(data, state['local_peer'])
+                print("GOT", addr, data)
+                if state.get("tcp"):
+                    tcp_sock.sendto(data, state['local_peer'])
+                else:
+                    ext_sock.sendto(data, state['local_peer'])
             else:
                 state['connected'] = True
         elif addr[0].startswith("127."):
+            print("OUT", addr, data)
             # Local to remote_peer
             state["local_peer"] = addr
             
             ext_sock.sendto(data, state['remote_peer'])
+
+def tcp_bridge(ext_sock, tcp_sock):
+    try:
+        while True:
+            data = sock.recv(MAX_MSG_SIZE)
+            print("TCP", data)
+            ext_sock.sendto(data, state['remote_peer'])
+    except OSError:
+        print("Socket closed, exiting thread")
 
 def main():
     p = argparse.ArgumentParser()
@@ -77,6 +91,7 @@ def main():
     p.add_argument("--session", required=True)
     p.add_argument("--external-port", type=int, required=True)
     p.add_argument("--local-default", type=int)
+    p.add_argument("--tcp", action="store_true")
     args = p.parse_args()
 
     relay_addr = (args.relay, args.relay_port)
@@ -92,6 +107,12 @@ def main():
         print(f"Failed to bind external port {args.external_port}: {e}")
         return
 
+    if args.tcp:
+        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        tcp_sock.bind(("0.0.0.0", args.external_port))
+        tcp_sock.listen()
+    
     state = {
         'local_peer': None if not args.local_default else ("127.0.0.1", args.local_default),
         'remote_peer': None,
@@ -101,9 +122,16 @@ def main():
     # Background thread for receiving packets
     threading.Thread(
         target=packet_loop,
-        args=(ext_sock, relay_addr, session, state),
+        args=(ext_sock, tcp_sock, relay_addr, session, state),
         daemon=True
     ).start()
+    
+    if args.tcp:
+        threading.Thread(
+            target=tcp_bridge,
+            args=(ext_sock, tcp_sock),
+            daemon=True
+        ).start()
     
     
     punch_and_monitor(ext_sock, relay_addr, session, state, punch_timeout=5.0)
@@ -124,6 +152,11 @@ def main():
 
             time.sleep(1.0)
     except KeyboardInterrupt:
+        if args.tcp:
+            print("Closing tcp")
+            tcp_conn.shutdown(socket.SHUT_RDWR)
+            tcp_sock.close()
+            tcp_thread.join()
         print("bye!")
 
 
