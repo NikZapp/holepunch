@@ -63,7 +63,7 @@ def packet_loop(ext_sock, tcp_sock, relay_addr, session, state):
             if data != PUNCH_MESSAGE:
                 print("GOT", addr, data)
                 if state.get("tcp"):
-                    if "tcp_conn" not in state:
+                    if "tcp_conn" in state:
                         state["tcp_conn"].sendto(data, state['local_peer'])
                     else:
                         print("Trying to send response to TCP socket, but its not alive")
@@ -95,11 +95,13 @@ def tcp_bridge(ext_sock, tcp_sock, state):
         print("TCP socket got a connection!")
     try:
         while True:
-            data = state["tcp_conn"].recv(MAX_MSG_SIZE)
-            if not data:
-                continue
-            print("TCP", data)
-            ext_sock.sendto(data, state['remote_peer'])
+            try:
+                data = state["tcp_conn"].recv(MAX_MSG_SIZE)
+                if data:
+                    print("TCP", data)
+                    ext_sock.sendto(data, state['remote_peer'])
+            except BlockingIOError:
+                time.sleep(0.01)
     except OSError as e:
         print(e)
         print("Socket closed, exiting thread")
@@ -143,6 +145,7 @@ def main():
             print("Connecting to default TCP socket")
             local_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             local_conn.connect(("127.0.0.1", args.local_default))
+            print("Connected!")
             state["tcp_conn"] = local_conn
     
     
