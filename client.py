@@ -182,7 +182,6 @@ def main():
             print("Closing tcp")
             tcp_sock.shutdown(socket.SHUT_RDWR)
             tcp_sock.close()
-            tcp_thread.join()
         print("bye!")
 
 
