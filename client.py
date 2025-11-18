@@ -63,7 +63,10 @@ def packet_loop(ext_sock, tcp_sock, relay_addr, session, state):
             if data != PUNCH_MESSAGE:
                 print("GOT", addr, data)
                 if state.get("tcp"):
-                    tcp_sock.sendto(data, state['local_peer'])
+                    if state["tcp_conn"]:
+                        state["tcp_conn"].sendto(data, state['local_peer'])
+                    else:
+                        print("Trying to send response to TCP socket, but its not alive")
                 else:
                     ext_sock.sendto(data, state['local_peer'])
             else:
@@ -75,13 +78,30 @@ def packet_loop(ext_sock, tcp_sock, relay_addr, session, state):
             
             ext_sock.sendto(data, state['remote_peer'])
 
-def tcp_bridge(ext_sock, tcp_sock):
+
+# A --> B
+# a on
+# create tcp socket
+# listen, send stuff to B
+# b on
+# create tcp socket
+# connect to local peer!
+# tcp:listen, send stuff to A
+def tcp_bridge(ext_sock, tcp_sock, state):
+    if not state["tcp_conn"]:
+        print("TCP socket not connected, accepting a connection...")
+        conn, addr = tcp_sock.accept()
+        state["tcp_conn"] = conn
+        print("TCP socket got a connection!")
     try:
         while True:
-            data = tcp_sock.recv(MAX_MSG_SIZE)
+            data = state["tcp_conn"].recv(MAX_MSG_SIZE)
+            if not data:
+                continue
             print("TCP", data)
             ext_sock.sendto(data, state['remote_peer'])
-    except OSError:
+    except OSError as e:
+        print(e)
         print("Socket closed, exiting thread")
 
 def main():
@@ -106,18 +126,24 @@ def main():
     except Exception as e:
         print(f"Failed to bind external port {args.external_port}: {e}")
         return
-
-    if args.tcp:
-        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        tcp_sock.bind(("0.0.0.0", args.external_port))
-        tcp_sock.listen()
     
     state = {
         'local_peer': None if not args.local_default else ("127.0.0.1", args.local_default),
         'remote_peer': None,
         'connected': False
     }
+
+    if args.tcp:
+        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        tcp_sock.bind(("0.0.0.0", args.external_port))
+        tcp_sock.listen()
+        if args.local_default:
+            print("Connecting to default TCP socket")
+            local_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            local_conn.connect(("127.0.0.1", args.local_default))
+            state["tcp_conn"] = local_conn
+    
     
     # Background thread for receiving packets
     threading.Thread(
@@ -154,7 +180,7 @@ def main():
     except KeyboardInterrupt:
         if args.tcp:
             print("Closing tcp")
-            tcp_conn.shutdown(socket.SHUT_RDWR)
+            tcp_sock.shutdown(socket.SHUT_RDWR)
             tcp_sock.close()
             tcp_thread.join()
         print("bye!")
