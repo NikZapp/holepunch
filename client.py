@@ -63,7 +63,7 @@ def packet_loop(ext_sock, tcp_sock, relay_addr, session, state):
             if data != PUNCH_MESSAGE:
                 print("GOT", addr, data)
                 if state.get("tcp"):
-                    if state["tcp_conn"]:
+                    if "tcp_conn" not in state:
                         state["tcp_conn"].sendto(data, state['local_peer'])
                     else:
                         print("Trying to send response to TCP socket, but its not alive")
@@ -88,7 +88,7 @@ def packet_loop(ext_sock, tcp_sock, relay_addr, session, state):
 # connect to local peer!
 # tcp:listen, send stuff to A
 def tcp_bridge(ext_sock, tcp_sock, state):
-    if not state["tcp_conn"]:
+    if "tcp_conn" not in state:
         print("TCP socket not connected, accepting a connection...")
         conn, addr = tcp_sock.accept()
         state["tcp_conn"] = conn
@@ -130,7 +130,8 @@ def main():
     state = {
         'local_peer': None if not args.local_default else ("127.0.0.1", args.local_default),
         'remote_peer': None,
-        'connected': False
+        'connected': False,
+        'tcp': args.tcp
     }
 
     if args.tcp:
