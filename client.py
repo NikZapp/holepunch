@@ -155,7 +155,7 @@ def main():
     if args.tcp:
         threading.Thread(
             target=tcp_bridge,
-            args=(ext_sock, tcp_sock),
+            args=(ext_sock, tcp_sock, state),
             daemon=True
         ).start()
     
