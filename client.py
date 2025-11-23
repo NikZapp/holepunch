@@ -2,6 +2,7 @@ import argparse
 import socket
 import threading
 import time
+#import rudp
 
 MAX_MSG_SIZE = 65536
 PUNCH_MESSAGE = b"THIS_IS_A_UNIQUE_MESSAGE_5348y2dhjkg"
@@ -92,6 +93,7 @@ def tcp_bridge(ext_sock, tcp_sock, state):
         print("TCP socket not connected, accepting a connection...")
         conn, addr = tcp_sock.accept()
         state["tcp_conn"] = conn
+        state["local_peer"] = addr
         print("TCP socket got a connection!")
     try:
         while True:
@@ -136,6 +138,7 @@ def main():
         'tcp': args.tcp
     }
 
+    tcp_sock = None
     if args.tcp:
         tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
